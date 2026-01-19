@@ -4,7 +4,6 @@ This repository is set up with **renv** for reproducible R environments and incl
 
 ## Quick start
 
-
 ### 1. Clone the repository
 ```bash
 git clone https://github.com/francacj/phi_tool_tanzania

@@ -8,7 +8,12 @@ This repository is set up with **renv** for reproducible R environments and incl
 ```bash
 git clone https://github.com/francacj/phi_tool_tanzania
 
-###  Use App:
+
+### 2. Install packages:
 Go to folder "phi_tool_tanzania" , double click on 6_tool-tanzania.Rproj.
+Load + run: install_packages.R
+
+
+### 3. Run app:
 Load: server.r , ui.r, shiny_run.r. 
 Open "shiny_run.r". Run rows one by one.

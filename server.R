@@ -20,31 +20,35 @@ fichier_donnees <- "events_data.csv"
 server <- function(input, output, session) {
   useShinyjs()
 
-  # Define the data source (CSV)
-  donnees <- reactiveVal({
-    tryCatch({
-      df_lu <- readr::read_csv(
-        fichier_donnees, show_col_types = FALSE,
-        col_types = cols(
-          Version = col_double(),
-          Date = col_date(),
-          Last_Modified = col_character()
+  # Reactive file reader: when events_data.csv changes (any client or external edit),
+  # all clients see the update. Uses cheap mtime check every 2s, re-reads only when changed.
+  donnees <- reactivePoll(
+    intervalMillis = 2000L,
+    checkFunc = function() {
+      fi <- file.info(fichier_donnees)
+      if (is.na(fi$mtime)) return(0)
+      paste(fi$mtime, fi$size, sep = "_")
+    },
+    valueFunc = function() {
+      tryCatch({
+        df_lu <- readr::read_csv(
+          fichier_donnees, show_col_types = FALSE,
+          col_types = cols(
+            Version = col_double(),
+            Date = col_date(),
+            Last_Modified = col_character()
+          )
         )
-      )
-      # Parse Last_Modified as Tanzania local time (CSV has no timezone)
-      if ("Last_Modified" %in% names(df_lu)) {
-        df_lu$Last_Modified <- lubridate::ymd_hms(df_lu$Last_Modified, tz = "Africa/Dar_es_Salaam")
-      }
-
-      # Ensure the 'Images' column exists
-      if (!"Images" %in% names(df_lu)) df_lu$Images <- NA_character_
-      df_lu
-
-    }, error = function(e) {
-      showModal(modalDialog("Error reading the CSV file: ", e$message))
-      data.frame()
-    })
-  })
+        if ("Last_Modified" %in% names(df_lu)) {
+          df_lu$Last_Modified <- lubridate::ymd_hms(df_lu$Last_Modified, tz = "Africa/Dar_es_Salaam")
+        }
+        if (!"Images" %in% names(df_lu)) df_lu$Images <- NA_character_
+        df_lu
+      }, error = function(e) {
+        data.frame()
+      })
+    }
+  )
 
   # --- Button: table zoom (show/hide the sidebar) ---
   observeEvent(input$zoom_table, {
@@ -211,10 +215,8 @@ server <- function(input, output, session) {
     )
 
 
-    donnees(bind_rows(donnees(), nouvel_evenement))
-
     tryCatch({
-      write_csv(donnees(), fichier_donnees)
+      write_csv(bind_rows(donnees(), nouvel_evenement), fichier_donnees)
     }, error = function(e) {
       showModal(modalDialog("Error while saving: ", e$message))
     })
@@ -305,10 +307,8 @@ server <- function(input, output, session) {
       select(Event_ID, Update, everything())
 
 
-    donnees(bind_rows(donnees_actuelles, nouvel_evenement))
-
     tryCatch({
-      write_csv(donnees(), fichier_donnees)
+      write_csv(bind_rows(donnees_actuelles, nouvel_evenement), fichier_donnees)
     }, error = function(e) {
       showModal(modalDialog("Error while saving: ", e$message))
     })
@@ -362,7 +362,6 @@ server <- function(input, output, session) {
         Last_Modified = lubridate::now(tzone = "Africa/Dar_es_Salaam")
       )
 
-    donnees(donnees_actuelles)
     write_csv(donnees_actuelles, fichier_donnees)
     session$userData$indice_edition <- NULL
   })
@@ -450,9 +449,7 @@ server <- function(input, output, session) {
 
     # Delete selected events
     df_new <- df[-selected_rows, ]
-    donnees(df_new)
 
-    # Update file
     tryCatch({
       write_csv(df_new, fichier_donnees)
       showModal(modalDialog(
@@ -732,7 +729,6 @@ server <- function(input, output, session) {
 
     # Merge and save
     df_new <- dplyr::bind_rows(df_all, dplyr::bind_rows(to_add))
-    donnees(df_new)
     tryCatch({
       write_csv(df_new, fichier_donnees)
     }, error = function(e) {
@@ -844,7 +840,6 @@ server <- function(input, output, session) {
       ajout <- paste(chemins_relatifs, collapse = ";")
       df$Images[pos] <- if (nzchar(exist)) paste(exist, ajout, sep = ";") else ajout
 
-      donnees(df)
       tryCatch(write_csv(df, fichier_donnees),
                error = function(e) showModal(modalDialog("Error while saving image paths: ", e$message)))
     }

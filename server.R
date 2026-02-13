@@ -20,10 +20,11 @@ fichier_donnees <- "events_data.csv"
 server <- function(input, output, session) {
   useShinyjs()
 
-  # Reactive file reader: when events_data.csv changes (any client or external edit),
-  # all clients see the update. Uses cheap mtime check every 2s, re-reads only when changed.
+  # Reactive file reader: when events_data.csv changes, all clients see the update.
+  # session is required as 2nd argument to reactivePoll.
   donnees <- reactivePoll(
     intervalMillis = 2000L,
+    session,
     checkFunc = function() {
       fi <- file.info(fichier_donnees)
       if (is.na(fi$mtime)) return(0)
@@ -290,7 +291,7 @@ server <- function(input, output, session) {
         Last_Modified = lubridate::with_tz(Sys.time(), "Africa/Dar_es_Salaam"),
         Title = input$titre,
         Event_Type = input$type_evenement,
-        Alert_Category = input$categorie,
+        Alert_Category = input$categorie,``
         Regions = input$regions,
         Sources = input$sources,
         Date = input$date,
